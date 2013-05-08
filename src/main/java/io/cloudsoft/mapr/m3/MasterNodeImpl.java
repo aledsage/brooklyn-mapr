@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,9 +20,12 @@ import org.slf4j.LoggerFactory;
 import brooklyn.config.render.RendererHints;
 import brooklyn.entity.Entity;
 import brooklyn.event.adapter.FunctionSensorAdapter;
+import brooklyn.event.feed.function.FunctionFeed;
+import brooklyn.event.feed.function.FunctionPollConfig;
 import brooklyn.location.Location;
 import brooklyn.util.MutableMap;
 
+import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.mysql.jdbc.Driver;
 
@@ -111,32 +115,32 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
          propagate(e);
       }
 
-      FunctionSensorAdapter dfsUsageSensor = sensorRegistry.register(new FunctionSensorAdapter(
-              MutableMap.of("period", 1 * 5000),
-              new Callable<Double>() {
-                 public Double call() throws Exception {
-                    // creating a new sql per query isnt the way to go
-
-                    ResultSet usedSpaceResult = usedSpaceStatement.executeQuery();
-                    ResultSet availableSpaceResult = availableSpaceStatement.executeQuery();
-
-                    int sumUsed = 0;
-                    while (usedSpaceResult.next()) {
-                       sumUsed += usedSpaceResult.getInt("space");
-                    }
-
-                    int sumAvail = 0;
-                    while (availableSpaceResult.next()) {
-                       sumUsed += availableSpaceResult.getInt("space");
-                    }
-
-                    log.info("current dfs usage: " + 100 * sumUsed / (sumUsed + sumAvail));
-                    return (100.0 * sumUsed) / (sumUsed + sumAvail);
-                 }
-              }));
-      dfsUsageSensor.poll(CLUSTER_USED_DFS_PERCENT);
-
-
+      FunctionFeed feed = FunctionFeed.builder()
+              .entity(this)
+              .period(5, TimeUnit.SECONDS)
+              .poll(new FunctionPollConfig<Double,Double>(CLUSTER_USED_DFS_PERCENT)
+                      .callable(new Callable<Double>() {
+                          @Override public Double call() throws Exception {
+                              // creating a new sql per query isnt the way to go
+        
+                              ResultSet usedSpaceResult = usedSpaceStatement.executeQuery();
+                              ResultSet availableSpaceResult = availableSpaceStatement.executeQuery();
+        
+                              int sumUsed = 0;
+                              while (usedSpaceResult.next()) {
+                                 sumUsed += usedSpaceResult.getInt("space");
+                              }
+        
+                              int sumAvail = 0;
+                              while (availableSpaceResult.next()) {
+                                 sumUsed += availableSpaceResult.getInt("space");
+                              }
+        
+                              log.info("current dfs usage: " + 100 * sumUsed / (sumUsed + sumAvail));
+                              return (100.0 * sumUsed) / (sumUsed + sumAvail);
+                          }})
+                      .onError(Functions.constant((Double)null)))
+              .build();
    }
 
    public void start(Collection<? extends Location> locations) {
