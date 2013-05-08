@@ -4,6 +4,7 @@ import brooklyn.entity.Entity;
 import brooklyn.entity.basic.Lifecycle;
 import brooklyn.entity.basic.SoftwareProcessImpl;
 import brooklyn.location.MachineProvisioningLocation;
+import brooklyn.location.jclouds.JcloudsLocation;
 import brooklyn.location.jclouds.templates.PortableTemplateBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -11,6 +12,7 @@ import com.google.common.collect.ImmutableSet;
 import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.domain.TemplateBuilderSpec;
+import org.jclouds.googlecomputeengine.GoogleComputeEngineApiMetadata;
 import org.jclouds.googlecomputeengine.compute.options.GoogleComputeEngineTemplateOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,20 +88,26 @@ public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements 
       Map flags = super.obtainProvisioningFlags(location); 
       Iterable<Integer> superInboundPorts = (Iterable<Integer>) flags.get("inboundPorts");
 
-      TemplateBuilder builder =  new PortableTemplateBuilder()
-        .osFamily(OsFamily.UBUNTU)
-        .osVersionMatches("12.04")
-        .os64Bit(true).minRam(2560);
-
-      flags.put("groupId", "brooklyn-mapr");
-      if (System.getProperty("jclouds.template") == null) {
-        flags.put("templateBuilder", builder);
-        flags.put("userName", "ubuntu");
+      if (location instanceof JcloudsLocation && ((JcloudsLocation)location).getProvider().equals("google-compute-engine")) {
+          flags.putAll(GoogleComputeEngineApiMetadata.defaultProperties());
+          flags.put("groupId", "brooklyn-mapr");
+          
       } else {
-        flags.put("templateBuilder", TemplateBuilderSpec
-          .parse(System.getProperty("jclouds.template"))
-          .copyTo(builder, new GoogleComputeEngineTemplateOptions()));
-        flags.put("userName", "jclouds");
+          TemplateBuilder builder =  new PortableTemplateBuilder()
+            .osFamily(OsFamily.UBUNTU)
+            .osVersionMatches("12.04")
+            .os64Bit(true).minRam(2560);
+    
+          flags.put("groupId", "brooklyn-mapr");
+          if (System.getProperty("jclouds.template") == null) {
+            flags.put("templateBuilder", builder);
+            flags.put("userName", "ubuntu");
+          } else {
+            flags.put("templateBuilder", TemplateBuilderSpec
+              .parse(System.getProperty("jclouds.template"))
+              .copyTo(builder, new GoogleComputeEngineTemplateOptions()));
+            flags.put("userName", "jclouds");
+          }
       }
       
       // from: http://www.mapr.com/doc/display/MapR/Ports+Used+by+MapR
@@ -108,7 +116,10 @@ public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements 
               .addAll(ImmutableList.of(22, 2048, 3306, 5660, 5181, 7221, 7222, 8080, 8443, 9001, 9997, 9998, 50030, 50060, 60000, 2888, 3888))
               .addAll(superInboundPorts == null ? ImmutableList.<Integer>of() : superInboundPorts)
               .build());
-      
+
+      // TODO Ensure don't log private credentials
+      LOG.info("M3 Node location config and provisioning flags: {}, and {}", location.getAllConfig(), flags);
+
       return flags;
    }
 

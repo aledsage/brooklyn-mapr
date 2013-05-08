@@ -27,7 +27,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
-/** starts an M3 cluster in AWS. login as username 'ubuntu', password 'm4pr'. */
+/** 
+ * starts an M3 cluster in AWS. login as username 'ubuntu', password 'm4pr'.
+ */
 public class MyM3App extends AbstractApplication {
 
     private static final Logger log = LoggerFactory.getLogger(MyM3App.class);
@@ -62,11 +64,6 @@ public class MyM3App extends AbstractApplication {
     }
 
     public static void main(String[] argv) throws IOException {
-        if (System.getProperty("credential") != null && new File(System.getProperty("credential")).exists()){
-          System.setProperty("credential", Strings2.toStringAndClose(new FileInputStream(System.getProperty("credential"))));
-          System.setProperty("jclouds.template", GoogleComputeEngineApiMetadata.defaultProperties().getProperty("jclouds.template"));
-        }
-
         System.setProperty("jclouds.ssh.max-retries", 20 + "");
         System.setProperty("jclouds.so-timeout", 120 * 1000 + "");
         System.setProperty("jclouds.connection-timeout", 120 * 1000 + "");

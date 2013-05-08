@@ -19,12 +19,11 @@ import org.slf4j.LoggerFactory;
 
 import brooklyn.config.render.RendererHints;
 import brooklyn.entity.Entity;
-import brooklyn.event.adapter.FunctionSensorAdapter;
 import brooklyn.event.feed.function.FunctionFeed;
 import brooklyn.event.feed.function.FunctionPollConfig;
 import brooklyn.location.Location;
-import brooklyn.util.MutableMap;
 
+import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.mysql.jdbc.Driver;
@@ -37,6 +36,11 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
       RendererHints.register(MAPR_URL, new RendererHints.NamedActionWithUrl("Open"));
    }
 
+   private FunctionFeed feed;
+   private Connection connection;
+   private PreparedStatement usedSpaceStatement;
+   private PreparedStatement availableSpaceStatement;
+
    public MasterNodeImpl() {
       super();
    }
@@ -48,10 +52,6 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
    public MasterNodeImpl(Map properties, Entity owner) {
       super(properties, owner);
    }
-
-   private Connection connection;
-   private PreparedStatement usedSpaceStatement;
-   private PreparedStatement availableSpaceStatement;
 
    public boolean isZookeeper() { return true; }
 
@@ -115,10 +115,10 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
          propagate(e);
       }
 
-      FunctionFeed feed = FunctionFeed.builder()
+      feed = FunctionFeed.builder()
               .entity(this)
               .period(5, TimeUnit.SECONDS)
-              .poll(new FunctionPollConfig<Double,Double>(CLUSTER_USED_DFS_PERCENT)
+              .poll(new FunctionPollConfig<Double, Double>(CLUSTER_USED_DFS_PERCENT)
                       .callable(new Callable<Double>() {
                           @Override public Double call() throws Exception {
                               // creating a new sql per query isnt the way to go
@@ -139,7 +139,12 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
                               log.info("current dfs usage: " + 100 * sumUsed / (sumUsed + sumAvail));
                               return (100.0 * sumUsed) / (sumUsed + sumAvail);
                           }})
-                      .onError(Functions.constant((Double)null)))
+                      .onError(new Function<Exception, Double>() {
+                          @Override public Double apply(Exception input) {
+                              // TODO Only log.error first time; want to rely on core-brooklyn's logging for errors
+                              LOG.error("Error fetching dfs usage for "+MasterNodeImpl.this, input);
+                              return 0.5;
+                          }}))
               .build();
    }
 
@@ -154,6 +159,7 @@ public class MasterNodeImpl extends AbstractM3NodeImpl implements MasterNode {
    @Override
    public void stop() {
       try {
+         if (feed != null) feed.stop();
          if (connection != null) connection.close();
       } catch (SQLException e) {
          propagate(e);
