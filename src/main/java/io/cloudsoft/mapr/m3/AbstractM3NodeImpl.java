@@ -1,5 +1,6 @@
 package io.cloudsoft.mapr.m3;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,8 @@ import brooklyn.location.jclouds.templates.PortableTemplateBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements AbstractM3Node {
 
@@ -82,8 +85,8 @@ public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements 
    }
 
    protected Map<String, Object> obtainProvisioningFlags(MachineProvisioningLocation location) {
-      Map flags = super.obtainProvisioningFlags(location); 
-      Iterable<Integer> superInboundPorts = (Iterable<Integer>) flags.get("inboundPorts");
+      Map<String,Object> flags = super.obtainProvisioningFlags(location); 
+      Iterable<Integer> superInboundPorts = toListOfInts(flags.get("inboundPorts"));
       
       flags.put("templateBuilder", new PortableTemplateBuilder().
               osFamily(OsFamily.UBUNTU).osVersionMatches("11.04").os64Bit(true).
@@ -99,6 +102,25 @@ public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements 
               .build());
       
       return flags;
+   }
+
+   @SuppressWarnings("unchecked")
+   private List<Integer> toListOfInts(Object v) {
+       List<Integer> result = Lists.newArrayList();
+       if (v == null) {
+           return null;
+       } else if (v instanceof Iterable) {
+           Iterables.addAll(result, (Iterable)v);
+       } else if (v instanceof Object[]) {
+           result.addAll((List)Arrays.asList(v));
+       } else if (v instanceof String) {
+           result.add(Integer.parseInt((String)v));
+       } else if (v instanceof Integer) {
+           result.add((Integer)v);
+       } else {
+           throw new IllegalArgumentException("Invalid type for List<Integer>: "+v+" of type "+v.getClass());
+       }
+       return result;
    }
 
    public abstract void startServices();

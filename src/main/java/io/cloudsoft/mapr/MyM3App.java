@@ -13,15 +13,11 @@ import brooklyn.enricher.basic.SensorPropagatingEnricher;
 import brooklyn.entity.Application;
 import brooklyn.entity.basic.AbstractApplication;
 import brooklyn.entity.basic.Entities;
-import brooklyn.entity.basic.StartableApplication;
 import brooklyn.entity.proxying.BasicEntitySpec;
 import brooklyn.entity.proxying.EntitySpecs;
 import brooklyn.launcher.BrooklynLauncher;
-import brooklyn.launcher.BrooklynServerDetails;
-import brooklyn.location.Location;
 import brooklyn.util.CommandLineUtil;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 

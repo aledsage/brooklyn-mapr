@@ -15,13 +15,12 @@ import org.slf4j.LoggerFactory;
 
 import brooklyn.config.BrooklynLogging;
 import brooklyn.entity.basic.AbstractSoftwareProcessSshDriver;
-import brooklyn.entity.basic.EntityLocal;
 import brooklyn.entity.basic.SoftwareProcessDriver;
-import brooklyn.entity.basic.lifecycle.CommonCommands;
 import brooklyn.entity.trait.Startable;
 import brooklyn.location.basic.SshMachineLocation;
 import brooklyn.location.jclouds.JcloudsSshMachineLocation;
 import brooklyn.util.MutableMap;
+import brooklyn.util.ssh.CommonCommands;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -262,21 +261,21 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
 
     @Override
     public void start() {
-       AbstractM3Node entity = (AbstractM3Node) getEntity();
+       AbstractM3NodeImpl entity = getEntity();
 
-       getEntity().setAttribute(AbstractM3Node.SUBNET_HOSTNAME, getEntity().getLocalHostname());
+       entity.setAttribute(AbstractM3Node.SUBNET_HOSTNAME, entity.getLocalHostname());
        enableNonTtySudo();
-       log.info("Installing JDK on:" + getEntity());
+       log.info("Installing JDK on:" + entity);
        installJdk7();
-       log.info("Installing/Configuring packages and starting required services on: " + getEntity());
+       log.info("Installing/Configuring packages and starting required services on: " + entity);
        configure();
        //wait for ZK to be running everywhere
-       getEntity().getConfig(M3.ZOOKEEPER_READY);
-       getEntity().configureMetrics(getEntity().getConfig(M3.MASTER_HOSTNAME));
-       log.info("Starting MapR services on: " + getEntity());
-       getEntity().startServices();
+       entity.getConfig(M3.ZOOKEEPER_READY);
+       entity.configureMetrics(entity.getConfig(M3.MASTER_HOSTNAME));
+       log.info("Starting MapR services on: " + entity);
+       entity.startServices();
        running = true;
-       getEntity().setAttribute(Startable.SERVICE_UP, true);
+       entity.setAttribute(Startable.SERVICE_UP, true);
     }
 
     @Override public void install() { /* not used */ }

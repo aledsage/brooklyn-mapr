@@ -40,10 +40,12 @@ public class M3Impl extends AbstractEntity implements M3 {
       super();
    }
 
+   /** @deprecated since 0.2.0; use EntitySpec instead of calling constructor */
    public M3Impl(Entity parent) {
       super(parent);
    }
 
+   /** @deprecated since 0.2.0; use EntitySpec instead of calling constructor */
    public M3Impl(Map flags, Entity parent) {
       super(flags, parent);
    }
