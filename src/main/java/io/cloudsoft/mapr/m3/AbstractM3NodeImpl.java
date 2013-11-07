@@ -1,5 +1,7 @@
 package io.cloudsoft.mapr.m3;
 
+import static brooklyn.util.ssh.CommonCommands.sudo;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -47,16 +49,22 @@ public abstract class AbstractM3NodeImpl extends SoftwareProcessImpl implements 
 
    @Override
    public void configureMetrics(String hostname) {
-      getDriver().exec(ImmutableList.of("sudo /opt/mapr/server/configure.sh -R -d " + hostname + ":3306 -du " +
+      getDriver().exec(ImmutableList.of(sudo("/opt/mapr/server/configure.sh -R -d " + hostname + ":3306 -du " +
               getUser()
-              + " -dp " +
-              getPassword() + " -ds metrics"));
+              + " -dp " + getPassword() 
+              + " -ds metrics")));
    }
 
    @Override
    public void setupMapRUser() {
+      // Note failed on centos 6.3 (ami us-east-1/ami-7d7bfc14) with "sudo: adduser: command not found"
+      // hence trying again with explicit path of adduser
+      // TODO would like to use CommonCommands.sudo, but worried how the "||" will behave on different platforms with that;
+      // without sudo(...) we could have problems on some platforms if commands are run as root.
       getDriver().exec(ImmutableList.of(
-              "sudo adduser " + getUser() + " < /dev/null || true",
+              "sudo adduser " + getUser() + " < /dev/null || " +
+                      "sudo /usr/sbin/adduser " + getUser() + " < /dev/null || " +
+                      "true",
               "echo \"" + getPassword() + "\n" + getPassword() + "\" | sudo passwd " + getUser() + ""));
    }
 

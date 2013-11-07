@@ -62,8 +62,8 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
                       "gpgcheck=0\n" +
                       "protect=1\n" +
                       "\n" +
-                      "[maprecosystem]" +
-                      "name=MapR Technologies" +
+                      "[maprecosystem]\n" +
+                      "name=MapR Technologies\n" +
                       "baseurl=http://package.mapr.com/releases/ecosystem/redhat\n" +
                       "enabled=1\n" +
                       "gpgcheck=0\n" +
@@ -162,7 +162,7 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
 
    public void installJdk7() {
       try {
-         getLocation().acquireMutex("install:" + getLocation().getName(), "installing Java at " + getLocation());
+         getLocation().acquireMutex("install:" + getLocation().getName(), "installing Java 7 at " + getLocation());
          log.debug("checking for java at " + entity + " @ " + getLocation());
          int result = getLocation().execCommands("check java", Arrays.asList("java -version | grep 'java version' " +
                  "| grep 1.7.0"));
@@ -171,7 +171,7 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
          } else {
             log.debug("java not detected at " + entity + " @ " + getLocation() + ", installing");
             log.info(getEntity() + ": installing JDK");
-            result = newScript("INSTALL_OPENJDK").body.append(
+            result = newScript("INSTALL_OPENJDK_7").body.append(
                     CommonCommands.installPackage(MutableMap.of("apt", "openjdk-7-jdk",
                             "yum", "java-1.7.0-openjdk-devel"), null)
                     // TODO the following complains about yum-install not defined
@@ -188,7 +188,7 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
                        " (and Java not detected); invalid result " + result + ". " +
                        "Processes may fail to start.");
             else
-               log.info(getEntity() + ": installed JDK");
+               log.info(getEntity() + ": installed JDK 7");
          }
       } catch (Exception e) {
          propagate(e);
@@ -233,6 +233,37 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
        }
     }
     
+    public void installJdk6() {
+        try {
+           getLocation().acquireMutex("install:" + getLocation().getName(), "installing Java 6 at " + getLocation());
+           log.debug("checking for java at " + entity + " @ " + getLocation());
+           int result = getLocation().execCommands("check java", Arrays.asList("java -version | grep 'java version' " +
+                   "| grep 1.6.0"));
+           if (result == 0) {
+              log.debug("java detected at " + entity + " @ " + getLocation());
+           } else {
+              log.debug("java not detected at " + entity + " @ " + getLocation() + ", installing");
+              log.info(getEntity() + ": installing JDK");
+              result = newScript("INSTALL_OPENJDK_6").body.append(
+                      CommonCommands.installPackage(MutableMap.of("apt", "openjdk-6-jdk",
+                              "yum", "java-1.6.0-openjdk-devel"), null)
+                              ).execute();
+              exec(of("if [[ -d /etc/alternatives/java_sdk/ && ! -d /usr/java/default ]] ; then sudo mkdir -p " +
+                      "/usr/java ; sudo ln -s /etc/alternatives/java_sdk /usr/java/default ; fi"));
+              if (result != 0)
+                 log.warn("Unable to install Java at " + getLocation() + " for " + entity +
+                         " (and Java not detected); invalid result " + result + ". " +
+                         "Processes may fail to start.");
+              else
+                 log.info(getEntity() + ": installed JDK 6");
+           }
+        } catch (Exception e) {
+           propagate(e);
+        } finally {
+           getLocation().releaseMutex("install:" + getLocation().getName());
+        }
+    }    
+    
     /** does common setup up to the point where zookeeper is running;
      * after this, node1 does some more things, then other nodes result when node1 is ready
      */
@@ -266,6 +297,9 @@ public class M3NodeDriver extends AbstractSoftwareProcessSshDriver implements So
        entity.setAttribute(AbstractM3Node.SUBNET_HOSTNAME, entity.getLocalHostname());
        enableNonTtySudo();
        log.info("Installing JDK on:" + entity);
+       // TODO Existing behaviour is to install jdk7; but had problems with that (vague memory!)
+       // Should we be using jdk6 instead?
+       // installJdk6();
        installJdk7();
        log.info("Installing/Configuring packages and starting required services on: " + entity);
        configure();
